@@ -1,0 +1,12 @@
+# Godot editor artifacts (this repo ships only the addon, not a full project)
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

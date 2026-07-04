@@ -1,0 +1,142 @@
+[gd_scene format=3 uid="uid://i0d2b4mo3v45"]
+
+[ext_resource type="Script" uid="uid://bnjmbu1dguubo" path="res://addons/forge_logger/ui/report_popup.gd" id="1_script"]
+
+[node name="ReportPopup" type="PanelContainer" unique_id=189560433]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 1.0
+offset_bottom = 25.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1929345720]
+layout_mode = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=896204113]
+layout_mode = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer" unique_id=204136244]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/Panel" unique_id=873346656]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel/MarginContainer" unique_id=705481569]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HeaderLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox" unique_id=2037465959]
+layout_mode = 2
+text = "Report a Bug"
+horizontal_alignment = 1
+
+[node name="FormContent" type="VBoxContainer" parent="CenterContainer/Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+layout_mode = 2
+text = "Title *"
+
+[node name="TitleInput" type="LineEdit" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Short summary of the issue"
+
+[node name="DescriptionLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+layout_mode = 2
+text = "Description"
+
+[node name="DescriptionInput" type="TextEdit" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+placeholder_text = "Describe what happened..."
+
+[node name="AttachLogsCheck" type="CheckBox" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Attach logs"
+
+[node name="AttachScreenshotCheck" type="CheckBox" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Attach screenshot"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Cancel"
+
+[node name="SubmitButton" type="Button" parent="CenterContainer/Panel/MarginContainer/VBox/FormContent/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Submit"
+
+[node name="SuccessContent" type="VBoxContainer" parent="CenterContainer/Panel/MarginContainer/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SuccessLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox/SuccessContent"]
+layout_mode = 2
+text = "Report submitted!"
+horizontal_alignment = 1
+
+[node name="ReportIdLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox/SuccessContent"]
+layout_mode = 2
+text = "Report ID:"
+
+[node name="ReportIdInput" type="LineEdit" parent="CenterContainer/Panel/MarginContainer/VBox/SuccessContent"]
+unique_name_in_owner = true
+layout_mode = 2
+editable = false
+
+[node name="SuccessButtonRow" type="HBoxContainer" parent="CenterContainer/Panel/MarginContainer/VBox/SuccessContent"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="CopyButton" type="Button" parent="CenterContainer/Panel/MarginContainer/VBox/SuccessContent/SuccessButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Copy ID"
+
+[node name="CloseButton" type="Button" parent="CenterContainer/Panel/MarginContainer/VBox/SuccessContent/SuccessButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Close"
+
+[node name="AutoCloseLabel" type="Label" parent="CenterContainer/Panel/MarginContainer/VBox/SuccessContent"]
+layout_mode = 2
+text = "Auto-closing in 10s..."
+horizontal_alignment = 1
