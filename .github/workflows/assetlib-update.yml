@@ -5,6 +5,9 @@ name: Update Asset Library listing
 # lands in the Asset Library moderation queue; the old version keeps serving
 # until a moderator approves it.
 #
+# With no inputs it publishes the version from addons/forge_logger/plugin.cfg
+# at the current main HEAD. Both can be overridden per run.
+#
 # Requires two repository secrets: ASSETLIB_USERNAME and ASSETLIB_PASSWORD
 # (the godotengine.org account that owns the listing).
 
@@ -12,9 +15,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version string for the listing (e.g. 0.2.0)"
-        required: true
+        description: "Version string for the listing (defaults to the version in plugin.cfg)"
+        required: false
         type: string
+        default: ""
       commit:
         description: "Full 40-char commit SHA to publish (defaults to the commit this workflow runs on)"
         required: false
@@ -34,7 +38,7 @@ jobs:
           COMMIT: ${{ inputs.commit }}
         run: |
           set -euo pipefail
-          if [[ ! "$VERSION" =~ ^[A-Za-z0-9._-]{1,32}$ ]]; then
+          if [[ -n "$VERSION" && ! "$VERSION" =~ ^[A-Za-z0-9._-]{1,32}$ ]]; then
             echo "::error::version must be a plain version string (got: $VERSION)"
             exit 1
           fi
@@ -47,20 +51,29 @@ jobs:
         with:
           ref: ${{ inputs.commit != '' && inputs.commit || github.sha }}
 
-      - name: Warn when plugin.cfg version differs from the input
+      - name: Resolve version (input overrides plugin.cfg)
+        id: version
         env:
-          VERSION: ${{ inputs.version }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
+          set -euo pipefail
           cfg_version=$(grep -oP '(?<=^version=")[^"]+' addons/forge_logger/plugin.cfg)
-          if [[ "$cfg_version" != "$VERSION" ]]; then
-            echo "::warning::plugin.cfg says $cfg_version but the listing will say $VERSION — did you forget to bump one of them?"
+          version="${INPUT_VERSION:-$cfg_version}"
+          if [[ ! "$version" =~ ^[A-Za-z0-9._-]{1,32}$ ]]; then
+            echo "::error::Resolved version does not look like a version string: '$version'"
+            exit 1
           fi
+          if [[ -n "$INPUT_VERSION" && "$INPUT_VERSION" != "$cfg_version" ]]; then
+            echo "::warning::plugin.cfg says $cfg_version but the listing will say $INPUT_VERSION — did you forget to bump one of them?"
+          fi
+          echo "Publishing version $version (plugin.cfg: $cfg_version)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Submit edit to the Godot Asset Library
         env:
           ASSETLIB_USERNAME: ${{ secrets.ASSETLIB_USERNAME }}
           ASSETLIB_PASSWORD: ${{ secrets.ASSETLIB_PASSWORD }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
           COMMIT: ${{ inputs.commit != '' && inputs.commit || github.sha }}
         run: |
           set -euo pipefail
