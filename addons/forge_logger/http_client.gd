@@ -82,8 +82,8 @@ func list_reports(project_id: String) -> Dictionary:
 	return await _request("GET", path)
 
 
-func get_events(project_id: String, session_id: String) -> Dictionary:
-	var path: String = "/v1/projects/%s/events" % [project_id, session_id]
+func get_events(project_id: String, _session_id: String) -> Dictionary:
+	var path: String = "/v1/projects/%s/events" % project_id
 	return await _request("GET", path)
 
 

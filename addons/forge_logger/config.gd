@@ -66,7 +66,17 @@ static func load_from_project_settings() -> ForgeLoggerConfig:
 	cfg.project_id = _get_setting("project_id", DEFAULT_PROJECT_ID)
 	cfg.api_key = _get_setting("api_key", DEFAULT_API_KEY)
 	cfg.game_name = _get_setting("game_name", DEFAULT_GAME_NAME)
+	if cfg.game_name.is_empty():
+		# Fall back to Godot's standard project name so sessions are labelled
+		# even when the plugin setting was never filled in.
+		cfg.game_name = str(ProjectSettings.get_setting("application/config/name", ""))
 	cfg.game_version = _get_setting("game_version", DEFAULT_GAME_VERSION)
+	if cfg.game_version.is_empty() or cfg.game_version == DEFAULT_GAME_VERSION:
+		# Same for the standard project version — an explicit plugin setting
+		# still wins over application/config/version.
+		var app_version: String = str(ProjectSettings.get_setting("application/config/version", ""))
+		if not app_version.is_empty():
+			cfg.game_version = app_version
 	cfg.build_hash = _get_setting("build_hash", DEFAULT_BUILD_HASH)
 	cfg.environment = _get_setting("environment", DEFAULT_ENVIRONMENT)
 	cfg.enable_logs = _get_setting("enable_logs", DEFAULT_ENABLE_LOGS)

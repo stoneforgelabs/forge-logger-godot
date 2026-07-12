@@ -1,0 +1,88 @@
+name: Update Asset Library listing
+
+# Manual trigger only ("Run workflow" button in the Actions tab) — submits an
+# edit for asset 5321 pointing the listing at a new version + commit. The edit
+# lands in the Asset Library moderation queue; the old version keeps serving
+# until a moderator approves it.
+#
+# Requires two repository secrets: ASSETLIB_USERNAME and ASSETLIB_PASSWORD
+# (the godotengine.org account that owns the listing).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version string for the listing (e.g. 0.2.0)"
+        required: true
+        type: string
+      commit:
+        description: "Full 40-char commit SHA to publish (defaults to the commit this workflow runs on)"
+        required: false
+        type: string
+        default: ""
+
+env:
+  ASSET_ID: "5321"
+
+jobs:
+  submit-edit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        env:
+          VERSION: ${{ inputs.version }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$VERSION" =~ ^[A-Za-z0-9._-]{1,32}$ ]]; then
+            echo "::error::version must be a plain version string (got: $VERSION)"
+            exit 1
+          fi
+          if [[ -n "$COMMIT" && ! "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::commit must be a full 40-character lowercase SHA or empty"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit != '' && inputs.commit || github.sha }}
+
+      - name: Warn when plugin.cfg version differs from the input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          cfg_version=$(grep -oP '(?<=^version=")[^"]+' addons/forge_logger/plugin.cfg)
+          if [[ "$cfg_version" != "$VERSION" ]]; then
+            echo "::warning::plugin.cfg says $cfg_version but the listing will say $VERSION — did you forget to bump one of them?"
+          fi
+
+      - name: Submit edit to the Godot Asset Library
+        env:
+          ASSETLIB_USERNAME: ${{ secrets.ASSETLIB_USERNAME }}
+          ASSETLIB_PASSWORD: ${{ secrets.ASSETLIB_PASSWORD }}
+          VERSION: ${{ inputs.version }}
+          COMMIT: ${{ inputs.commit != '' && inputs.commit || github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$ASSETLIB_USERNAME" || -z "$ASSETLIB_PASSWORD" ]]; then
+            echo "::error::Set the ASSETLIB_USERNAME and ASSETLIB_PASSWORD repository secrets first."
+            exit 1
+          fi
+
+          api="https://godotengine.org/asset-library/api"
+
+          echo "Logging in as $ASSETLIB_USERNAME…"
+          token=$(curl -sfX POST "$api/login" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg u "$ASSETLIB_USERNAME" --arg p "$ASSETLIB_PASSWORD" '{username: $u, password: $p}')" \
+            | jq -re .token)
+
+          echo "Submitting edit: asset $ASSET_ID → version $VERSION @ $COMMIT"
+          response=$(curl -sfX POST "$api/asset/$ASSET_ID" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$token" --arg v "$VERSION" --arg c "$COMMIT" \
+                  '{token: $t, version_string: $v, download_commit: $c}')")
+
+          edit_id=$(echo "$response" | jq -re .id)
+          echo "::notice::Edit #$edit_id submitted — awaiting Asset Library moderation."
+          echo "Track it at https://godotengine.org/asset-library/asset/edit/$edit_id"

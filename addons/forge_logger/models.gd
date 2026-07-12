@@ -102,8 +102,12 @@ class ReportData extends RefCounted:
 	var description: String = ""
 	var severity: String = "medium"
 	var reporter_type: String = "player"
+	var source_channel: String = ""
+	var fingerprint: String = ""
 	var tags: PackedStringArray = PackedStringArray()
 	var custom_data: Dictionary = {}
+	# Runtime context (ReportContextDto): sceneName, platform, performance, extra...
+	var context: Dictionary = {}
 	var uploads: Array[Dictionary] = []
 	var events: Array[Dictionary] = []
 	var event_ids: Array[String] = []
@@ -115,8 +119,11 @@ class ReportData extends RefCounted:
 			"description": description,
 			"severity": severity,
 			"reporter_type": reporter_type,
+			"source_channel": source_channel,
+			"fingerprint": fingerprint,
 			"tags": Array(tags),
 			"custom_data": custom_data,
+			"context": context,
 			"uploads": uploads,
 			"events": events,
 		}
@@ -128,6 +135,9 @@ class ReportData extends RefCounted:
 		r.description = data.get("description", "")
 		r.severity = data.get("severity", "medium")
 		r.reporter_type = data.get("reporter_type", "player")
+		r.source_channel = data.get("source_channel", "")
+		r.fingerprint = data.get("fingerprint", "")
+		r.context = data.get("context", {})
 		var raw_tags: Variant = data.get("tags", [])
 		if raw_tags is Array:
 			for t: Variant in raw_tags:

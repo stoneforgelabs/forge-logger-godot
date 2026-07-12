@@ -9,7 +9,7 @@ A free, open-source Godot 4.x plugin. Drop it in, set one project ID, and your g
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Godot 4.x](https://img.shields.io/badge/Godot-4.x-478cbf?logo=godotengine&logoColor=white)](https://godotengine.org)
-[![Godot Asset Library](https://img.shields.io/badge/Asset_Library-Forge_Logger-478cbf)]([ASSETLIB_URL])
+[![Godot Asset Library](https://img.shields.io/badge/Asset_Library-Forge_Logger-478cbf)](https://godotengine.org/asset-library/asset/5321)
 [![Free hosted tier](https://img.shields.io/badge/hosted_dashboard-free_tier-ff6a2c)](https://forgelogger.dev/auth)
 
 ---
@@ -49,10 +49,10 @@ Enabling the plugin registers the **`ForgeLogger`** autoload singleton. The **`f
 | `base_url` | Ingest endpoint. Defaults to `https://ingest.forgelogger.dev`. Self-hosting? Put your own URL here. |
 | `project_id` | Your project UUID (from the dashboard, or your own backend). |
 | `api_key` | Your project's logger token (`flg_…`). Required for the hosted backend; leave it empty only if your self-hosted ingest runs without auth. |
-| `game_name` / `game_version` / `build_hash` | Stamped onto the **session** (build + metadata); `build_hash` is omitted when empty. |
+| `game_name` / `game_version` / `build_hash` | Stamped onto the **session** (build + metadata); `build_hash` is omitted when empty. When unset, `game_name` and `game_version` fall back to `application/config/name` and `application/config/version`. |
 | `environment` | `development` · `staging` · `production`. |
 | `enable_screenshot` | Capture & attach a screenshot with reports (off by default — flip it on). |
-| `enable_logs` | Attach engine/game logs to reports. |
+| `enable_logs` | Attach engine/game logs to reports. On Godot 4.5+ output is captured in memory (including error backtraces), so logs arrive complete even from release exports, where `godot.log` stays buffered on disk; older engines fall back to reading the log file. |
 | `auto_start_session` | Start a session automatically on launch (on by default). |
 | `collect_device_info` | Include the device model + locale in session telemetry. Off by default — set it on to opt in. |
 
@@ -68,7 +68,7 @@ func _unhandled_input(event: InputEvent) -> void:
         ForgeLogger.show_report_popup()
 ```
 
-The player types a title and description; the report is sent with session metadata attached (plus a screenshot if you've turned on `enable_screenshot`). Done.
+The player types a title and description; the report is sent with runtime context attached automatically — current scene, build version, FPS / frame time / memory, session uptime — plus a screenshot if you've turned on `enable_screenshot`. Done.
 
 **3. Or wire your own UI / fire reports from code:**
 
@@ -87,6 +87,13 @@ ForgeLogger.capture_bug({
 
 # Drop lightweight events onto the session timeline
 ForgeLogger.record_event("level_started", { "level": "forest_02" })
+
+# Enrich every report (popup included) with your game state
+ForgeLogger.set_context_provider(func() -> Dictionary:
+    return {
+        "checkpoint": "level_%d" % current_level,
+        "playerPosition": { "x": player.position.x, "y": player.position.y },
+    })
 ```
 
 ---
@@ -99,6 +106,7 @@ ForgeLogger.record_event("level_started", { "level": "forest_02" })
 | `ForgeLogger.submit_ui_report(title, description, attach_logs, attach_screenshot=true) -> String` | Send a report from your own UI. |
 | `ForgeLogger.capture_bug(data: Dictionary) -> String` | Fire a report from code; returns the report id. |
 | `ForgeLogger.record_event(type, payload)` / `send_events()` | Add events to the session timeline. |
+| `ForgeLogger.set_context_provider(provider: Callable)` | Register a callback returning a Dictionary merged into every report's context — including popup reports. Keys matching the context fields (`checkpoint`, `playerPosition`, `sceneName`, …) go top-level; anything else lands in `extra`. |
 | `ForgeLogger.start_session() -> bool` / `get_session_id() -> String` | Manage the session manually. |
 | `ForgeLogger.retry_queued() -> int` | Flush reports queued while offline. |
 | `ForgeLogger.check_health() -> Dictionary` | Ping the backend. |
@@ -144,6 +152,8 @@ Project scope is carried by the logger token, not the URL. The plugin targets th
 
 Reports carry a client-generated `clientRequestId` (UUID), persisted in the offline queue. Retries with the same key return `{ idempotent: true, ... }` and never create duplicates server-side.
 
+Every report also ships a `context` block filled in automatically — current scene, platform, build version, performance counters (FPS, frame time, RAM, VRAM, node & orphan-node counts), session uptime, and whatever your `set_context_provider` callback returns — plus `sourceChannel` (`ui_popup` vs `api`) and an optional `fingerprint` dedupe hint passed through `capture_bug`.
+
 **Attachment limits:** screenshots `png/jpeg/webp` ≤ 10 MiB · log bundles ≤ 50 MiB · save states ≤ 100 MiB · video `webm/mp4` ≤ 500 MiB. Aggregate ≤ 600 MiB/report (otherwise `413`).
 
 ---
@@ -159,7 +169,7 @@ Reports carry a client-generated `clientRequestId` (UUID), persisted in the offl
 ## Links
 
 - 🌐 Website: https://forgelogger.dev · Dashboard: https://forgelogger.dev/auth · Docs: https://forgelogger.dev/docs/plugins/godot
-- 📦 Asset Library: [ASSETLIB_URL]
+- 📦 Asset Library: https://godotengine.org/asset-library/asset/5321
 - 💻 Source — issues & PRs welcome: https://github.com/stoneforgelabs/forge-logger-godot
 
 ## License

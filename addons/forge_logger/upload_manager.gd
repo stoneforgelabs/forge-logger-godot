@@ -50,6 +50,13 @@ func upload_file(project_id: String, session_id: String, upload_data: ForgeLogge
 	file.close()
 	upload_data.size_bytes = size_bytes
 
+	# Empty files happen legitimately: release exports buffer godot.log and
+	# flush it only on exit. A zero-byte PUT is also rejected by GCS (411),
+	# so skip early with a clear message instead of failing downstream.
+	if size_bytes == 0:
+		_log("Upload skipped, file is empty: %s" % upload_data.file_path)
+		return ""
+
 	# Step 1: Create upload record in GCS via the API.
 	var payload: Dictionary = {
 		"sessionId": session_id,
@@ -95,6 +102,35 @@ func upload_all_logs(project_id: String, session_id: String) -> Array[Dictionary
 			upload_refs.append(log_file.to_dict())
 
 	return upload_refs
+
+
+## Upload the in-memory engine log capture as a log_bundle attachment.
+## The text is staged to a file so it goes through the same upload path
+## (and size accounting) as file-based logs.
+func upload_captured_log(project_id: String, session_id: String, text: String) -> Array[Dictionary]:
+	if text.is_empty():
+		return []
+
+	var dir_path: String = OS.get_user_data_dir().path_join("forge_logger")
+	DirAccess.make_dir_recursive_absolute(dir_path)
+	var file_path: String = dir_path.path_join("capture.log")
+	var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
+	if file == null:
+		_log("Cannot stage captured log: %s" % file_path)
+		return []
+	file.store_string(text)
+	file.close()
+
+	var upload_data: ForgeLoggerModels.UploadData = ForgeLoggerModels.UploadData.new()
+	upload_data.type = "log_bundle"
+	upload_data.filename = "game.log"
+	upload_data.mime_type = "text/plain"
+	upload_data.file_path = file_path
+
+	var upload_id: String = await upload_file(project_id, session_id, upload_data)
+	if upload_id != "":
+		return [upload_data.to_dict()]
+	return []
 
 
 func capture_screenshot(viewport: Viewport) -> String:

@@ -16,6 +16,10 @@ static func build_report_payload(report: ForgeLoggerModels.ReportData) -> Dictio
 		report_dto["severity"] = report.severity
 	if report.reporter_type != "":
 		report_dto["reporterType"] = report.reporter_type
+	if report.source_channel != "":
+		report_dto["sourceChannel"] = report.source_channel
+	if report.fingerprint != "":
+		report_dto["fingerprint"] = report.fingerprint
 
 	var payload: Dictionary = {
 		"sessionId": report.session_id,
@@ -23,13 +27,15 @@ static func build_report_payload(report: ForgeLoggerModels.ReportData) -> Dictio
 		"report": report_dto,
 	}
 
-	# Build context from custom_data and tags.
-	var context: Dictionary = {}
+	# Runtime context collected by ForgeLogger, plus custom_data and tags in extra.
+	var context: Dictionary = report.context.duplicate(true)
+	var extra: Dictionary = context.get("extra", {}) as Dictionary
 	if not report.custom_data.is_empty():
-		context["extra"] = report.custom_data
+		extra.merge(report.custom_data, true)
 	if not report.tags.is_empty():
-		context["extra"] = context.get("extra", {})
-		(context["extra"] as Dictionary)["tags"] = Array(report.tags)
+		extra["tags"] = Array(report.tags)
+	if not extra.is_empty():
+		context["extra"] = extra
 	if not context.is_empty():
 		payload["context"] = context
 
@@ -63,6 +69,7 @@ static func build_from_dict(data: Dictionary, session_id: String = "") -> ForgeL
 	report.description = data.get("description", "")
 	report.severity = data.get("severity", "medium")
 	report.reporter_type = data.get("reporter_type", "player")
+	report.fingerprint = data.get("fingerprint", "")
 	report.session_id = session_id
 
 	var raw_tags: Variant = data.get("tags", [])
