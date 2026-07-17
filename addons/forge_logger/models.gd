@@ -28,7 +28,6 @@ static func generate_uuid() -> String:
 
 class SessionData extends RefCounted:
 	var session_id: String = ""
-	var project_id: String = ""
 	var started_at: String = ""
 	var game_version: String = ""
 	var build_hash: String = ""
@@ -41,7 +40,6 @@ class SessionData extends RefCounted:
 	func to_dict() -> Dictionary:
 		return {
 			"session_id": session_id,
-			"project_id": project_id,
 			"started_at": started_at,
 			"game_version": game_version,
 			"build_hash": build_hash,
@@ -55,7 +53,6 @@ class SessionData extends RefCounted:
 	static func from_dict(data: Dictionary) -> SessionData:
 		var s: SessionData = SessionData.new()
 		s.session_id = data.get("session_id", "")
-		s.project_id = data.get("project_id", "")
 		s.started_at = data.get("started_at", "")
 		s.game_version = data.get("game_version", "")
 		s.build_hash = data.get("build_hash", "")

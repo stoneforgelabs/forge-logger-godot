@@ -60,7 +60,7 @@ func clear_events() -> void:
 ## Send all stored events without backend IDs to the API.
 ## On success, assigns backend IDs to the sent events (keeps them in buffer).
 ## Returns true if the events were sent successfully.
-func send_events(project_id: String, session_id: String) -> bool:
+func send_events(session_id: String) -> bool:
 	var unsent: Array[ForgeLoggerModels.EventData] = []
 	for event: ForgeLoggerModels.EventData in _events:
 		if not event.has_backend_id():
@@ -75,7 +75,7 @@ func send_events(project_id: String, session_id: String) -> bool:
 		event.session_id = session_id
 		events_payload.append(event.to_dict())
 
-	var result: Dictionary = await _http.post_events(project_id, events_payload)
+	var result: Dictionary = await _http.post_events(events_payload)
 	if result.get("success", false):
 		var body: Variant = result.get("body", {})
 		_assign_backend_ids(unsent, body)
@@ -90,14 +90,14 @@ func send_events(project_id: String, session_id: String) -> bool:
 
 ## Post a single event immediately to the API and store it with its backend ID.
 ## Returns true if the event was sent successfully.
-func post_event_immediate(project_id: String, session_id: String, event_type: String, payload: Dictionary = {}) -> bool:
+func post_event_immediate(session_id: String, event_type: String, payload: Dictionary = {}) -> bool:
 	var event: ForgeLoggerModels.EventData = ForgeLoggerModels.EventData.new()
 	event.event_type = event_type
 	event.occurred_at = _get_utc_timestamp()
 	event.payload = payload
 	event.session_id = session_id
 
-	var result: Dictionary = await _http.post_events(project_id, [event.to_dict()])
+	var result: Dictionary = await _http.post_events([event.to_dict()])
 	if result.get("success", false):
 		var body: Variant = result.get("body", {})
 		_assign_backend_ids([event], body)

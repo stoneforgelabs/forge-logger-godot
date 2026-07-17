@@ -66,7 +66,7 @@ func _initialize() -> void:
 	_register_log_capture()
 
 	_initialized = true
-	_log("Initialized (project: %s, url: %s)." % [config.project_id, config.base_url])
+	_log("Initialized (url: %s)." % config.base_url)
 
 
 func _register_log_capture() -> void:
@@ -91,7 +91,7 @@ func _auto_start() -> void:
 		# Retry any queued reports from previous session
 		if report_queue.queue_size() > 0:
 			_log("Retrying %d queued reports..." % report_queue.queue_size())
-			var sent: int = await report_queue.retry_all(config.project_id)
+			var sent: int = await report_queue.retry_all()
 			_log("Retried queued reports: %d succeeded." % sent)
 
 	# Start new session
@@ -139,21 +139,21 @@ func capture_bug(data: Dictionary) -> String:
 
 	# Optionally attach logs
 	var attach_logs: bool = data.get("attach_logs", config.enable_logs)
-	if attach_logs and config.project_id != "":
+	if attach_logs and config.is_ingest_configured():
 		var upload_refs: Array[Dictionary] = await _upload_logs(session_id)
 		report.uploads = upload_refs
 
 	# Optionally attach screenshot
 	var attach_screenshot: bool = data.get("attach_screenshot", config.enable_screenshot)
-	if attach_screenshot and config.project_id != "":
+	if attach_screenshot and config.is_ingest_configured():
 		var screenshot_path: String = upload_manager.capture_screenshot(get_viewport())
-		var screenshot_refs: Array[Dictionary] = await upload_manager.upload_screenshot(config.project_id, session_id, screenshot_path)
+		var screenshot_refs: Array[Dictionary] = await upload_manager.upload_screenshot(session_id, screenshot_path)
 		report.uploads.append_array(screenshot_refs)
 
 	# Upload any events that have not been sent yet so their IDs are available.
 	var session_id_for_events: String = session_manager.get_session_id()
-	if config.project_id != "" and not session_id_for_events.is_empty():
-		await event_manager.send_events(config.project_id, session_id_for_events)
+	if config.is_ingest_configured() and not session_id_for_events.is_empty():
+		await event_manager.send_events(session_id_for_events)
 
 	# Attach IDs of events already uploaded via API.
 	report.event_ids = event_manager.get_uploaded_event_ids()
@@ -176,20 +176,20 @@ func submit_ui_report(title: String, description: String, attach_logs: bool, att
 	report.source_channel = "ui_popup"
 	report.context = _build_context()
 
-	if attach_logs and config.project_id != "":
+	if attach_logs and config.is_ingest_configured():
 		var upload_refs: Array[Dictionary] = await _upload_logs(session_id)
 		report.uploads = upload_refs
 
-	if attach_screenshot and _pending_screenshot_path != "" and config.project_id != "":
-		var screenshot_refs: Array[Dictionary] = await upload_manager.upload_screenshot(config.project_id, session_id, _pending_screenshot_path)
+	if attach_screenshot and _pending_screenshot_path != "" and config.is_ingest_configured():
+		var screenshot_refs: Array[Dictionary] = await upload_manager.upload_screenshot(session_id, _pending_screenshot_path)
 		report.uploads.append_array(screenshot_refs)
 
 	_pending_screenshot_path = ""
 
 	# Upload any events that have not been sent yet so their IDs are available.
 	var session_id_for_events: String = session_manager.get_session_id()
-	if config.project_id != "" and not session_id_for_events.is_empty():
-		await event_manager.send_events(config.project_id, session_id_for_events)
+	if config.is_ingest_configured() and not session_id_for_events.is_empty():
+		await event_manager.send_events(session_id_for_events)
 
 	# Attach IDs of events already uploaded via API.
 	report.event_ids = event_manager.get_uploaded_event_ids()
@@ -231,7 +231,7 @@ func get_session_id() -> String:
 
 ## Retry all queued reports.
 func retry_queued() -> int:
-	return await report_queue.retry_all(config.project_id)
+	return await report_queue.retry_all()
 
 
 ## Wait until the session has been initialized (started or failed).
@@ -255,10 +255,10 @@ func record_event(event_type: String, payload: Dictionary = {}) -> void:
 func send_events() -> bool:
 	await await_session_ready()
 	var session_id: String = session_manager.get_session_id()
-	if config.project_id.is_empty():
-		_log("Cannot send events: project_id is not configured.")
+	if not config.is_ingest_configured():
+		_log("Cannot send events: set forge_logger/api_key (or point base_url at your own backend).")
 		return false
-	return await event_manager.send_events(config.project_id, session_id)
+	return await event_manager.send_events(session_id)
 
 
 ## Post a single event immediately to the API without storing it.
@@ -267,10 +267,10 @@ func send_events() -> bool:
 func post_event(event_type: String, payload: Dictionary = {}) -> bool:
 	await await_session_ready()
 	var session_id: String = session_manager.get_session_id()
-	if config.project_id.is_empty():
-		_log("Cannot post event: project_id is not configured.")
+	if not config.is_ingest_configured():
+		_log("Cannot post event: set forge_logger/api_key (or point base_url at your own backend).")
 		return false
-	return await event_manager.post_event_immediate(config.project_id, session_id, event_type, payload)
+	return await event_manager.post_event_immediate(session_id, event_type, payload)
 
 
 ## Get the number of stored events.
@@ -350,19 +350,19 @@ func _build_context() -> Dictionary:
 ## reading log files from disk when capture is unavailable or empty.
 func _upload_logs(session_id: String) -> Array[Dictionary]:
 	if log_capture != null:
-		var refs: Array[Dictionary] = await upload_manager.upload_captured_log(config.project_id, session_id, log_capture.get_text())
+		var refs: Array[Dictionary] = await upload_manager.upload_captured_log(session_id, log_capture.get_text())
 		if refs.size() > 0:
 			return refs
-	return await upload_manager.upload_all_logs(config.project_id, session_id)
+	return await upload_manager.upload_all_logs(session_id)
 
 
 func _submit_or_queue(payload: Dictionary) -> String:
-	if config.project_id.is_empty():
-		_log("Cannot submit report: project_id is not configured.")
+	if not config.is_ingest_configured():
+		_log("Cannot submit report: set forge_logger/api_key (or point base_url at your own backend).")
 		report_queue.enqueue(payload)
 		return ""
 
-	var result: Dictionary = await http.submit_report(config.project_id, payload)
+	var result: Dictionary = await http.submit_report(payload)
 	if result.get("success", false):
 		var body: Dictionary = result.get("body", {})
 		var report_id: String = str(body.get("id", body.get("reportId", "")))

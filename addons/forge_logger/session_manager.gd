@@ -66,18 +66,17 @@ func build_start_session_payload() -> Dictionary:
 
 
 func start_session() -> bool:
-	if _config.project_id.is_empty():
-		_log("Cannot start session: project_id is not configured.")
+	if not _config.is_ingest_configured():
+		_log("Cannot start session: set forge_logger/api_key (or point base_url at your own backend).")
 		return false
 
 	var payload: Dictionary = build_start_session_payload()
-	var result: Dictionary = await _http.start_session(_config.project_id, payload)
+	var result: Dictionary = await _http.start_session(payload)
 
 	if result.get("success", false):
 		var body: Dictionary = result.get("body", {})
 		current_session = ForgeLoggerModels.SessionData.new()
 		current_session.session_id = str(body.get("id", body.get("sessionId", "")))
-		current_session.project_id = _config.project_id
 		var meta: Dictionary = payload.get("metadata", {})
 		var build: Dictionary = payload.get("build", {})
 		var player: Dictionary = payload.get("player", {})

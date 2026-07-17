@@ -31,7 +31,7 @@ func enqueue(report_payload: Dictionary) -> void:
 	_log("Report queued for retry (%d in queue)." % _queue.size())
 
 
-func retry_all(project_id: String) -> int:
+func retry_all() -> int:
 	if _queue.is_empty():
 		return 0
 
@@ -43,7 +43,7 @@ func retry_all(project_id: String) -> int:
 		var attempts: int = entry.get("attempts", 0) + 1
 		entry["attempts"] = attempts
 
-		var result: Dictionary = await _http.submit_report(project_id, payload)
+		var result: Dictionary = await _http.submit_report(payload)
 		if result.get("success", false):
 			succeeded += 1
 			_log("Queued report submitted successfully (attempt %d)." % attempts)

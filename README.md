@@ -2,14 +2,14 @@
 
 **Your playtesters press one key, type what broke, and you get a structured bug report — with a screenshot and the exact scene, build, and environment it happened in — instead of a blurry screenshot dumped in Discord.**
 
-A free, open-source Godot 4.x plugin. Drop it in, set one project ID, and your game can collect real bug reports from real players. Triage them yourself against your own backend, or connect the optional hosted dashboard for AI summaries and one-click export to GitHub.
+A free, open-source Godot 4.x plugin. Drop it in, paste one token, and your game can collect real bug reports from real players. Triage them yourself against your own backend, or connect the optional hosted dashboard for AI summaries and one-click export to GitHub.
 
 <!-- [CLIP] Replace with an animated GIF of the in-game flow: player hits the hotkey → popup → types → "sent" → report shows up on the dashboard. This GIF is the single most important asset on the page — put the 12s loop here. -->
 ![Forge Logger in-game report flow](docs/demo.gif)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Godot 4.x](https://img.shields.io/badge/Godot-4.x-478cbf?logo=godotengine&logoColor=white)](https://godotengine.org)
-[![Godot Asset Library](https://img.shields.io/badge/Asset_Library-Forge_Logger-478cbf)](https://godotengine.org/asset-library/asset/5321)
+[![Godot Asset Store](https://img.shields.io/badge/Asset_Store-Forge_Logger-478cbf)](https://store.godotengine.org/asset/stoneforge-labs/forge-logger)
 [![Free hosted tier](https://img.shields.io/badge/hosted_dashboard-free_tier-ff6a2c)](https://forgelogger.dev/auth)
 
 ---
@@ -28,7 +28,7 @@ Playtest feedback is chaos. Testers paste screenshots into Discord with "it cras
 
 ## Install
 
-### From the Godot Asset Library (recommended)
+### From the Godot Asset Store (recommended)
 1. In the editor: **AssetLib** tab → search **"Forge Logger"** → **Download** → **Install**.
 2. **Project → Project Settings → Plugins** → enable **Forge Logger**.
 
@@ -47,8 +47,7 @@ Enabling the plugin registers the **`ForgeLogger`** autoload singleton. The **`f
 | Setting | What it does |
 |---|---|
 | `base_url` | Ingest endpoint. Defaults to `https://ingest.forgelogger.dev`. Self-hosting? Put your own URL here. |
-| `project_id` | Your project UUID (from the dashboard, or your own backend). |
-| `api_key` | Your project's logger token (`flg_…`). Required for the hosted backend; leave it empty only if your self-hosted ingest runs without auth. |
+| `api_key` | Your project's logger token (`flg_…`). The token identifies your project — no separate project ID needed. Required for the hosted backend; leave it empty only if your self-hosted ingest runs without auth. |
 | `game_name` / `game_version` / `build_hash` | Stamped onto the **session** (build + metadata); `build_hash` is omitted when empty. When unset, `game_name` and `game_version` fall back to `application/config/name` and `application/config/version`. |
 | `environment` | `development` · `staging` · `production`. |
 | `enable_screenshot` | Capture & attach a screenshot with reports (off by default — flip it on). |
@@ -56,7 +55,7 @@ Enabling the plugin registers the **`ForgeLogger`** autoload singleton. The **`f
 | `auto_start_session` | Start a session automatically on launch (on by default). |
 | `collect_device_info` | Include the device model + locale in session telemetry. Off by default — set it on to opt in. |
 
-Using the hosted dashboard? Both values are one click away: [create a free project](https://forgelogger.dev/auth), then mint a logger token under **Project → Tokens** and paste the `flg_…` value into `api_key`.
+Using the hosted dashboard? The token is one click away: [create a free project](https://forgelogger.dev/auth), then mint a logger token under **Project → Tokens** and paste the `flg_…` value into `api_key`.
 
 > **Privacy:** session telemetry carries engine version, platform, and current scene. The device model and locale are sent **only if you turn `collect_device_info` on** — off by default. Point `base_url` at your own backend and no report data reaches Forge Logger's servers.
 
@@ -169,7 +168,7 @@ Every report also ships a `context` block filled in automatically — current sc
 ## Links
 
 - 🌐 Website: https://forgelogger.dev · Dashboard: https://forgelogger.dev/auth · Docs: https://forgelogger.dev/docs/plugins/godot
-- 📦 Asset Library: https://godotengine.org/asset-library/asset/5321
+- 📦 Asset Store: https://store.godotengine.org/asset/stoneforge-labs/forge-logger
 - 💻 Source — issues & PRs welcome: https://github.com/stoneforgelabs/forge-logger-godot
 
 ## License

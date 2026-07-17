@@ -25,15 +25,11 @@ func configure(base_url: String, api_key: String = "") -> void:
 	_api_key = api_key
 
 
-func get_projects() -> Dictionary:
-	return await _request("GET", "/v1/projects")
-
-
-func start_session(_project_id: String, payload: Dictionary) -> Dictionary:
+func start_session(payload: Dictionary) -> Dictionary:
 	return await _request("POST", "/v1/ingest/sessions", payload)
 
 
-func create_upload(_project_id: String, payload: Dictionary) -> Dictionary:
+func create_upload(payload: Dictionary) -> Dictionary:
 	return await _request("POST", "/v1/ingest/uploads", payload)
 
 
@@ -73,21 +69,11 @@ func put_raw(url: String, content_type: String, data: PackedByteArray) -> Dictio
 	return {"success": success, "response_code": response_code, "body": parsed_body}
 
 
-func submit_report(_project_id: String, payload: Dictionary) -> Dictionary:
+func submit_report(payload: Dictionary) -> Dictionary:
 	return await _request("POST", "/v1/ingest/reports", payload)
 
 
-func list_reports(project_id: String) -> Dictionary:
-	var path: String = "/v1/projects/%s/reports" % project_id
-	return await _request("GET", path)
-
-
-func get_events(project_id: String, _session_id: String) -> Dictionary:
-	var path: String = "/v1/projects/%s/events" % project_id
-	return await _request("GET", path)
-
-
-func post_events(_project_id: String, events: Array) -> Dictionary:
+func post_events(events: Array) -> Dictionary:
 	return await _request_with_body("POST", "/v1/ingest/events", events)
 
 

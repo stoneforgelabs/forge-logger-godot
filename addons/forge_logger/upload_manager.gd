@@ -35,7 +35,7 @@ func collect_log_files() -> Array[ForgeLoggerModels.UploadData]:
 	return uploads
 
 
-func upload_file(project_id: String, session_id: String, upload_data: ForgeLoggerModels.UploadData) -> String:
+func upload_file(session_id: String, upload_data: ForgeLoggerModels.UploadData) -> String:
 	if not FileAccess.file_exists(upload_data.file_path):
 		_log("Upload file not found: %s" % upload_data.file_path)
 		return ""
@@ -66,7 +66,7 @@ func upload_file(project_id: String, session_id: String, upload_data: ForgeLogge
 		"sizeBytes": size_bytes,
 	}
 
-	var result: Dictionary = await _http.create_upload(project_id, payload)
+	var result: Dictionary = await _http.create_upload(payload)
 	if not result.get("success", false):
 		var err_body: Dictionary = result.get("body", {})
 		var error_msg: String = str(err_body.get("message", ""))
@@ -92,12 +92,12 @@ func upload_file(project_id: String, session_id: String, upload_data: ForgeLogge
 		return ""
 
 
-func upload_all_logs(project_id: String, session_id: String) -> Array[Dictionary]:
+func upload_all_logs(session_id: String) -> Array[Dictionary]:
 	var log_files: Array[ForgeLoggerModels.UploadData] = collect_log_files()
 	var upload_refs: Array[Dictionary] = []
 
 	for log_file: ForgeLoggerModels.UploadData in log_files:
-		var upload_id: String = await upload_file(project_id, session_id, log_file)
+		var upload_id: String = await upload_file(session_id, log_file)
 		if upload_id != "":
 			upload_refs.append(log_file.to_dict())
 
@@ -107,7 +107,7 @@ func upload_all_logs(project_id: String, session_id: String) -> Array[Dictionary
 ## Upload the in-memory engine log capture as a log_bundle attachment.
 ## The text is staged to a file so it goes through the same upload path
 ## (and size accounting) as file-based logs.
-func upload_captured_log(project_id: String, session_id: String, text: String) -> Array[Dictionary]:
+func upload_captured_log(session_id: String, text: String) -> Array[Dictionary]:
 	if text.is_empty():
 		return []
 
@@ -127,7 +127,7 @@ func upload_captured_log(project_id: String, session_id: String, text: String) -
 	upload_data.mime_type = "text/plain"
 	upload_data.file_path = file_path
 
-	var upload_id: String = await upload_file(project_id, session_id, upload_data)
+	var upload_id: String = await upload_file(session_id, upload_data)
 	if upload_id != "":
 		return [upload_data.to_dict()]
 	return []
@@ -153,7 +153,7 @@ func capture_screenshot(viewport: Viewport) -> String:
 	return file_path
 
 
-func upload_screenshot(project_id: String, session_id: String, screenshot_path: String) -> Array[Dictionary]:
+func upload_screenshot(session_id: String, screenshot_path: String) -> Array[Dictionary]:
 	if screenshot_path.is_empty() or not FileAccess.file_exists(screenshot_path):
 		return []
 
@@ -163,7 +163,7 @@ func upload_screenshot(project_id: String, session_id: String, screenshot_path: 
 	upload_data.mime_type = "image/png"
 	upload_data.file_path = screenshot_path
 
-	var upload_id: String = await upload_file(project_id, session_id, upload_data)
+	var upload_id: String = await upload_file(session_id, upload_data)
 	if upload_id != "":
 		return [upload_data.to_dict()]
 	return []

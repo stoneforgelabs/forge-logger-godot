@@ -7,7 +7,6 @@ const SETTINGS_PREFIX: String = "forge_logger/"
 
 # Defaults
 const DEFAULT_BASE_URL: String = "https://ingest.forgelogger.dev"
-const DEFAULT_PROJECT_ID: String = ""
 const DEFAULT_API_KEY: String = ""
 const DEFAULT_GAME_NAME: String = ""
 const DEFAULT_GAME_VERSION: String = "0.0.1"
@@ -19,7 +18,6 @@ const DEFAULT_AUTO_START_SESSION: bool = true
 const DEFAULT_COLLECT_DEVICE_INFO: bool = false
 
 var base_url: String = DEFAULT_BASE_URL
-var project_id: String = DEFAULT_PROJECT_ID
 var api_key: String = DEFAULT_API_KEY
 var game_name: String = DEFAULT_GAME_NAME
 var game_version: String = DEFAULT_GAME_VERSION
@@ -33,11 +31,17 @@ var auto_start_session: bool = DEFAULT_AUTO_START_SESSION
 var collect_device_info: bool = DEFAULT_COLLECT_DEVICE_INFO
 
 
+## The ingest backend derives the project from the logger token, so a token is
+## the only required setting. A custom base_url without a token also counts as
+## configured — self-hosted ingest may run without auth.
+func is_ingest_configured() -> bool:
+	return not api_key.is_empty() or base_url != DEFAULT_BASE_URL
+
+
 static func _define_project_settings() -> void:
 	var settings: Array[Dictionary] = [
 		{"name": "base_url", "type": TYPE_STRING, "default": DEFAULT_BASE_URL, "hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "https://ingest.forgelogger.dev"},
-		{"name": "project_id", "type": TYPE_STRING, "default": DEFAULT_PROJECT_ID, "hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "Your project UUID from Forge Logger API"},
-		{"name": "api_key", "type": TYPE_STRING, "default": DEFAULT_API_KEY, "hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "Optional API key for authentication"},
+		{"name": "api_key", "type": TYPE_STRING, "default": DEFAULT_API_KEY, "hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "Your project's logger token (flg_...); project scope is derived from it"},
 		{"name": "game_name", "type": TYPE_STRING, "default": DEFAULT_GAME_NAME, "hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "Display name of your game"},
 		{"name": "game_version", "type": TYPE_STRING, "default": DEFAULT_GAME_VERSION, "hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "e.g. 1.0.0"},
 		{"name": "build_hash", "type": TYPE_STRING, "default": DEFAULT_BUILD_HASH, "hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "Optional git commit hash"},
@@ -63,7 +67,6 @@ static func _define_project_settings() -> void:
 static func load_from_project_settings() -> ForgeLoggerConfig:
 	var cfg: ForgeLoggerConfig = ForgeLoggerConfig.new()
 	cfg.base_url = _get_setting("base_url", DEFAULT_BASE_URL)
-	cfg.project_id = _get_setting("project_id", DEFAULT_PROJECT_ID)
 	cfg.api_key = _get_setting("api_key", DEFAULT_API_KEY)
 	cfg.game_name = _get_setting("game_name", DEFAULT_GAME_NAME)
 	if cfg.game_name.is_empty():
