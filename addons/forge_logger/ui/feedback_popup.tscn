@@ -1,0 +1,96 @@
+[gd_scene load_steps=2 format=3 uid="uid://rwtwa360tx43"]
+
+[ext_resource type="Script" uid="uid://oxsfhlkbk8om" path="res://addons/forge_logger/ui/feedback_popup.gd" id="1_script"]
+
+[node name="FeedbackPopup" type="Control"]
+process_mode = 3
+layout_mode = 3
+mouse_filter = 0
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+theme_type_variation = &"ForgeLoggerPanel"
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="Layout" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"ForgeLoggerTitle"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Scroll" type="ScrollContainer" parent="Center/Panel/Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="Center/Panel/Margin/Layout/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="Status" type="Label" parent="Center/Panel/Margin/Layout"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"ForgeLoggerError"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Panel/Margin/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="CloseButton" type="Button" parent="Center/Panel/Margin/Layout/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+text = "Close"
+
+[node name="SubmitButton" type="Button" parent="Center/Panel/Margin/Layout/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 40)
+layout_mode = 2
+theme_type_variation = &"ForgeLoggerPrimaryButton"
+text = "Send feedback"
+
+[node name="PoweredBy" type="Label" parent="Center/Panel/Margin/Layout"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"ForgeLoggerHint"
+horizontal_alignment = 1

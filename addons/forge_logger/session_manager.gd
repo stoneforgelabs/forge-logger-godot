@@ -9,8 +9,14 @@ const SESSION_FILE: String = "user://forge_logger_session.json"
 const CRASH_MARKER_FILE: String = "user://forge_logger_crash_marker"
 
 var current_session: ForgeLoggerModels.SessionData = null
+## Extra keys merged into the start-session `metadata` (ForgeLogger.session_metadata).
+var session_metadata: Dictionary = {}
 var _config: ForgeLoggerConfig = null
 var _http: ForgeLoggerHttpClient = null
+# Time.get_ticks_msec() when the current session started; heartbeats report
+# elapsed play time from here (monotonic, unaffected by wall-clock changes).
+var _started_ticks_ms: int = 0
+var _ended: bool = false
 
 
 func initialize(config: ForgeLoggerConfig, http: ForgeLoggerHttpClient) -> void:
@@ -56,6 +62,8 @@ func build_start_session_payload() -> Dictionary:
 		"startedAt": Time.get_datetime_string_from_system(true),
 		"gameName": _config.game_name,
 	}
+	# Game-provided facts (e.g. {"build_kind": "demo"}) win over the defaults.
+	metadata.merge(session_metadata, true)
 
 	var payload: Dictionary = {
 		"build": build,
@@ -77,6 +85,7 @@ func start_session() -> bool:
 		var body: Dictionary = result.get("body", {})
 		current_session = ForgeLoggerModels.SessionData.new()
 		current_session.session_id = str(body.get("id", body.get("sessionId", "")))
+		current_session.build_id = str(body.get("buildId", ""))
 		var meta: Dictionary = payload.get("metadata", {})
 		var build: Dictionary = payload.get("build", {})
 		var player: Dictionary = payload.get("player", {})
@@ -88,8 +97,14 @@ func start_session() -> bool:
 		current_session.device = player.get("deviceId", "")
 		current_session.locale = meta.get("locale", "")
 		current_session.current_scene = meta.get("currentScene", "")
-		_save_session()
-		_write_crash_marker()
+		_started_ticks_ms = Time.get_ticks_msec()
+		_ended = false
+		# Crash marker + session file live in user:// and only serve bug
+		# reporting (unclean-shutdown detection); analytics-only setups
+		# (enable_reports = false) write nothing to disk.
+		if _config.enable_reports:
+			_save_session()
+			_write_crash_marker()
 		_log("Session started: %s" % current_session.session_id)
 		return true
 	else:
@@ -103,6 +118,68 @@ func get_session_id() -> String:
 	if current_session:
 		return current_session.session_id
 	return ""
+
+
+## Backend build UUID from the start-session response, if a session is active.
+func get_build_id() -> String:
+	if current_session:
+		return current_session.build_id
+	return ""
+
+
+## Whole seconds since the current session started. 0 when no session is active.
+func get_session_uptime_sec() -> int:
+	return elapsed_seconds()
+
+
+## True while a session has been started and not ended via end_session().
+func is_active() -> bool:
+	return not get_session_id().is_empty() and not _ended
+
+
+## Whole seconds since the current session started.
+func elapsed_seconds() -> int:
+	if current_session == null:
+		return 0
+	return int((Time.get_ticks_msec() - _started_ticks_ms) / 1000.0)
+
+
+## Send a heartbeat for the current session. `ended` closes it server-side.
+func send_heartbeat(ended: bool = false, reason: String = "") -> bool:
+	if not is_active():
+		return false
+	var payload: Dictionary = _heartbeat_payload(ended, reason)
+	var result: Dictionary = await _http.post_heartbeat(get_session_id(), payload)
+	if not result.get("success", false):
+		_log("Heartbeat failed (HTTP %d)." % result.get("response_code", 0))
+		return false
+	return true
+
+
+## Mark the session ended locally (no further heartbeats). The server is told
+## via send_heartbeat(true, ...) or the blocking/beacon shutdown paths.
+func mark_ended() -> void:
+	_ended = true
+
+
+## Payload of the heartbeat endpoint.
+func _heartbeat_payload(ended: bool, reason: String) -> Dictionary:
+	var payload: Dictionary = {"elapsedS": elapsed_seconds()}
+	if ended:
+		payload["ended"] = true
+		if not reason.is_empty():
+			payload["endReason"] = reason.left(64)
+	return payload
+
+
+## Best-effort final heartbeat for shutdown paths (blocking, desktop/mobile).
+func send_end_blocking(reason: String) -> bool:
+	if not is_active():
+		return false
+	var path: String = "/v1/ingest/sessions/%s/heartbeat" % get_session_id().uri_encode()
+	var ok: bool = _http.post_blocking(path, _heartbeat_payload(true, reason))
+	_ended = true
+	return ok
 
 
 func has_crash_marker() -> bool:

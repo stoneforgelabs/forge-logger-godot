@@ -7,11 +7,28 @@ extends RefCounted
 ## Generate a UUIDv4 string (8-4-4-4-12 hex).
 ## Server accepts this as clientRequestId / upload id; full time-ordered
 ## UUIDv7 is not required for idempotency.
+##
+## The bytes come from the OS's secure random source (Crypto), never from the
+## global randi(): a game that calls seed() (deterministic procgen, a fixed
+## level seed on every booth PC) would otherwise repeat the same "random" ids,
+## and the API would take a new answer for a retry of an old one
+## (`idempotent: true`) — silently dropping it.
 static func generate_uuid() -> String:
 	var bytes: PackedByteArray = PackedByteArray()
-	bytes.resize(16)
-	for i: int in range(16):
-		bytes[i] = randi() & 0xff
+	# Through ClassDB: an engine built without the crypto module still parses
+	# this script.
+	if ClassDB.class_exists(&"Crypto"):
+		var crypto: Object = ClassDB.instantiate(&"Crypto")
+		if crypto != null:
+			bytes = crypto.call(&"generate_random_bytes", 16) as PackedByteArray
+	if bytes.size() != 16:
+		# No secure source on this platform: an own, freshly seeded generator
+		# still ignores the game's seed().
+		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+		rng.randomize()
+		bytes.resize(16)
+		for i: int in range(16):
+			bytes[i] = rng.randi() & 0xff
 	bytes[6] = (bytes[6] & 0x0f) | 0x40  # version 4
 	bytes[8] = (bytes[8] & 0x3f) | 0x80  # RFC 4122 variant
 	var hex: String = ""
@@ -28,6 +45,10 @@ static func generate_uuid() -> String:
 
 class SessionData extends RefCounted:
 	var session_id: String = ""
+	## Backend-assigned build UUID from the start-session response (distinct
+	## from build_hash, the developer-set git commit string). Used by
+	## open_feedback() to link a feedback response to the build.
+	var build_id: String = ""
 	var started_at: String = ""
 	var game_version: String = ""
 	var build_hash: String = ""
@@ -40,6 +61,7 @@ class SessionData extends RefCounted:
 	func to_dict() -> Dictionary:
 		return {
 			"session_id": session_id,
+			"build_id": build_id,
 			"started_at": started_at,
 			"game_version": game_version,
 			"build_hash": build_hash,
@@ -53,6 +75,7 @@ class SessionData extends RefCounted:
 	static func from_dict(data: Dictionary) -> SessionData:
 		var s: SessionData = SessionData.new()
 		s.session_id = data.get("session_id", "")
+		s.build_id = data.get("build_id", "")
 		s.started_at = data.get("started_at", "")
 		s.game_version = data.get("game_version", "")
 		s.build_hash = data.get("build_hash", "")

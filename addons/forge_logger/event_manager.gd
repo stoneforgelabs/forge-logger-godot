@@ -5,10 +5,26 @@ extends RefCounted
 ## sent independently to the API, or posted immediately.
 
 const LOG_PREFIX: String = "[ForgeLogger] "
+## Analytics events (track()) waiting to be sent; the oldest are dropped
+## beyond this so an offline game cannot grow the buffer without bound.
+const TRACK_MAX_PENDING: int = 1000
+## Events per POST /v1/ingest/events request (server max is 500).
+const TRACK_BATCH_SIZE: int = 100
+
+signal _flush_finished
+
+## A send_events() batch finished (internal: serializes concurrent calls).
+signal _batch_finished
 
 var _config: ForgeLoggerConfig = null
 var _http: ForgeLoggerHttpClient = null
 var _events: Array[ForgeLoggerModels.EventData] = []
+var _sending: bool = false
+# track() buffer: API-shaped dictionaries, removed once delivered (unlike
+# _events, which are kept so bug reports can link them).
+var _tracked: Array[Dictionary] = []
+var _flushing: bool = false
+var _dropped_warned: bool = false
 
 
 func initialize(config: ForgeLoggerConfig, http: ForgeLoggerHttpClient) -> void:
@@ -60,7 +76,24 @@ func clear_events() -> void:
 ## Send all stored events without backend IDs to the API.
 ## On success, assigns backend IDs to the sent events (keeps them in buffer).
 ## Returns true if the events were sent successfully.
+##
+## Calls are serialized: an event gets its backend id only when the response
+## arrives, so two batches in flight at once (capture_bug() twice in a row, a
+## periodic send_events() next to an F8 report) would both post the same
+## events and the server — without an idempotency key for events — would
+## store them twice. A second call waits for the first, then sends whatever
+## is still without an id.
 func send_events(session_id: String) -> bool:
+	while _sending:
+		await _batch_finished
+	_sending = true
+	var ok: bool = await _send_unsent(session_id)
+	_sending = false
+	_batch_finished.emit()
+	return ok
+
+
+func _send_unsent(session_id: String) -> bool:
 	var unsent: Array[ForgeLoggerModels.EventData] = []
 	for event: ForgeLoggerModels.EventData in _events:
 		if not event.has_backend_id():
@@ -109,6 +142,81 @@ func post_event_immediate(session_id: String, event_type: String, payload: Dicti
 		var error_msg: String = str(err_body.get("message", ""))
 		_log("Immediate event failed (HTTP %d). %s" % [result.get("response_code", 0), error_msg])
 		return false
+
+
+## Queue an analytics event (fire-and-forget). Sent in batches by
+## flush_tracked(); `session_id` may be empty and is then filled in at send time.
+func track(event_type: String, payload: Dictionary, session_id: String) -> void:
+	_tracked.append({
+		"sessionId": session_id,
+		"eventType": event_type,
+		"occurredAt": _get_utc_timestamp(),
+		"payload": payload,
+	})
+	if _tracked.size() > TRACK_MAX_PENDING:
+		_tracked.pop_front()
+		if not _dropped_warned:
+			_dropped_warned = true
+			push_warning("[ForgeLogger] Analytics buffer full (%d); dropping the oldest events." % TRACK_MAX_PENDING)
+
+
+## Number of tracked events not delivered yet.
+func pending_tracked() -> int:
+	return _tracked.size()
+
+
+## Send all tracked events in batches. Events without a session id get
+## `session_id`. Keeps undelivered events on network errors, 429 and 5xx (next
+## flush retries them); drops a batch the server rejects outright (other 4xx),
+## which would otherwise be re-sent forever. Concurrent calls wait for the
+## running flush and then send what is left. Returns true when the buffer is
+## empty afterwards.
+func flush_tracked(session_id: String) -> bool:
+	while _flushing:
+		await _flush_finished
+	if _tracked.is_empty():
+		return true
+	if session_id.is_empty():
+		return false
+	_flushing = true
+	var ok: bool = true
+	while not _tracked.is_empty():
+		var count: int = mini(TRACK_BATCH_SIZE, _tracked.size())
+		var batch: Array[Dictionary] = []
+		for i: int in range(count):
+			var ev: Dictionary = _tracked[i]
+			if str(ev.get("sessionId", "")).is_empty():
+				ev["sessionId"] = session_id
+			batch.append(ev)
+		var result: Dictionary = await _http.post_events(batch)
+		if result.get("success", false):
+			_tracked = _tracked.slice(count)
+			continue
+		var code: int = result.get("response_code", 0)
+		if code >= 400 and code < 500 and code != 408 and code != 429:
+			var err_body: Dictionary = result.get("body", {})
+			push_warning("[ForgeLogger] Dropped %d analytics events rejected by the server (HTTP %d): %s" % [count, code, str(err_body.get("message", ""))])
+			_tracked = _tracked.slice(count)
+			continue
+		ok = false
+		break
+	_flushing = false
+	_flush_finished.emit()
+	return ok and _tracked.is_empty()
+
+
+## Shutdown path: one blocking request with up to TRACK_BATCH_SIZE events.
+func flush_tracked_blocking(session_id: String) -> void:
+	if _tracked.is_empty() or session_id.is_empty():
+		return
+	var batch: Array = []
+	for i: int in range(mini(TRACK_BATCH_SIZE, _tracked.size())):
+		var ev: Dictionary = _tracked[i]
+		if str(ev.get("sessionId", "")).is_empty():
+			ev["sessionId"] = session_id
+		batch.append(ev)
+	if _http.post_blocking("/v1/ingest/events", batch, 1000):
+		_tracked = _tracked.slice(batch.size())
 
 
 ## Assign backend IDs from the API response to the corresponding events.
